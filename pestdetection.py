@@ -7,10 +7,10 @@ import cv2
 import tempfile
 import json
 
-# Page config
+
 st.set_page_config(page_title="PestVision AI", page_icon="🪲", layout="centered")
 
-# Custom CSS for the CareerLens-like clean layout
+
 st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] {
@@ -73,29 +73,24 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Main content
-st.markdown("<div class='main-card'>", unsafe_allow_html=True)
 
-# Title and tagline
 st.markdown("<div class='title'>PestVision AI </div>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>Eco-smart Pest Detection powered by Deep Learning</div>", unsafe_allow_html=True)
 
-# Bug icon below subtitle
+
 st.markdown("<div class='bug-icon'>🪲</div>", unsafe_allow_html=True)
 
-# Upload section
+
 st.markdown("<div class='upload-label'>Upload a Pest Image for Detection</div>", unsafe_allow_html=True)
 st.markdown("<div class='note'>Choose an image file (JPG, JPEG, or PNG) of the pest</div>", unsafe_allow_html=True)
 uploaded_file = st.file_uploader("Upload", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-# Closing card
+
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ✨ Footer with impressive description
 st.markdown("""
 <div class='footer'>
 PestVision AI combines the power of deep learning with sustainable farming principles to protect crops intelligently. 
-By automating pest identification, it empowers farmers and researchers to make faster, eco-friendly decisions — 
-reducing pesticide waste, preserving biodiversity, and ensuring a greener, healthier planet for the generations ahead.
+
 </div>
 """, unsafe_allow_html=True)
