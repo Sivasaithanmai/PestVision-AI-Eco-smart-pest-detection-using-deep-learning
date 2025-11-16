@@ -1,8 +1,8 @@
-tensorflow==2.13.0
-keras==2.13.1
-numpy==1.25.2
-pandas==2.1.0
-opencv-python==4.10.0.76
-streamlit==1.27.0
-matplotlib==3.8.0
-
+streamlit
+tensorflow
+keras
+numpy
+pandas
+opencv-python
+matplotlib
+Pillow
