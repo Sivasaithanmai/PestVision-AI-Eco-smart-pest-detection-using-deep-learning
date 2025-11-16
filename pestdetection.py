@@ -8,14 +8,14 @@ MODEL_PATH = "model.h5"
 CLASS_NAMES = ["Aphid", "Armyworm", "Bollworm", "Grasshopper", "Mites"]  # <-- CHANGE to your classes
 IMG_SIZE = (224, 224)
 
-# ------------- LOAD MODEL -----------------
+
 @st.cache_resource
 def load_model():
     return tf.keras.models.load_model(MODEL_PATH)
 
 model = load_model()
 
-# ----------------- UI ---------------------
+
 st.set_page_config(page_title="PestVision AI", page_icon="🪲", layout="centered")
 
 st.markdown("""
@@ -44,11 +44,12 @@ st.markdown("<div class='note'>Choose JPG, JPEG, or PNG</div>", unsafe_allow_htm
 
 uploaded_file = st.file_uploader("Upload", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-# ------------- PREDICTION -----------------
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
+
 def process_and_predict(img_file):
     img = image.load_img(img_file, target_size=IMG_SIZE)
     img_array = image.img_to_array(img)
-    img_array = img_array / 255.0
+    img_array = preprocess_input(img_array)  # <--- IMPORTANT
     img_array = np.expand_dims(img_array, axis=0)
 
     preds = model.predict(img_array)
@@ -57,7 +58,8 @@ def process_and_predict(img_file):
 
     return CLASS_NAMES[class_id], float(confidence)
 
-# ------------- RESULT DISPLAY -------------
+
+
 if uploaded_file:
     st.image(uploaded_file, caption="Uploaded Image", width=300)
 
