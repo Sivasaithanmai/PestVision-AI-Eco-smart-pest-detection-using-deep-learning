@@ -3,6 +3,6 @@ tensorflow
 keras
 numpy
 pandas
-opencv-python
+opencv-python==4.10.0.76
 matplotlib
 Pillow
