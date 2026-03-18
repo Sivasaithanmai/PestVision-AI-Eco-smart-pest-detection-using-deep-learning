@@ -39,7 +39,7 @@ def load_model():
     return tf.keras.models.load_model("pest_model.keras")
 
 model = load_model()
-class_names = ["Healthy", "Pest"]  # binary classification
+class_names = ["Healthy", "Pest"]
 
 # ---- Grad-CAM ----
 def get_gradcam(img_array, model):
@@ -56,8 +56,11 @@ def get_gradcam(img_array, model):
 
     with tf.GradientTape() as tape:
         conv_outputs, predictions = grad_model(img_array)
-        # binary-safe loss
-        loss = predictions[:, 0]
+        # binary-safe loss: works even if output shape is (1,1)
+        if predictions.shape[1] == 1:
+            loss = predictions[:, 0]
+        else:
+            loss = predictions[:, tf.argmax(predictions[0])]
 
     grads = tape.gradient(loss, conv_outputs)
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
@@ -89,8 +92,15 @@ if uploaded_file:
 
     # Prediction
     prediction = model.predict(img_array_exp)
-    predicted_class = class_names[int(prediction[0] > 0.5)]  # binary safe
-    confidence = float(prediction[0] if predicted_class=="Pest" else 1-prediction[0])
+    
+    # Binary-safe prediction
+    if prediction.shape[1] == 1:  # sigmoid binary
+        pred_value = prediction[0][0]
+        predicted_class = class_names[int(pred_value > 0.5)]
+        confidence = float(pred_value if pred_value > 0.5 else 1 - pred_value)
+    else:  # softmax multi-class
+        predicted_class = class_names[np.argmax(prediction)]
+        confidence = float(np.max(prediction))
 
     # Grad-CAM
     heatmap = get_gradcam(img_array_exp, model)
