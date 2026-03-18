@@ -34,8 +34,7 @@ model = load_model()
 class_names = ["Healthy", "Pest"]
 
 # ---- Grad-CAM functions ----
-def get_gradcam(img_array, model):
-    # Find last conv layer
+def get_gradcam_universal(img_array, model):
     last_conv_layer = None
     for layer in reversed(model.layers):
         if isinstance(layer, tf.keras.layers.Conv2D):
@@ -44,22 +43,23 @@ def get_gradcam(img_array, model):
     if last_conv_layer is None:
         return None
 
-    grad_model = tf.keras.models.Model([model.inputs],[model.get_layer(last_conv_layer).output, model.output])
+    grad_model = tf.keras.models.Model(
+        [model.inputs],
+        [model.get_layer(last_conv_layer).output, model.output]
+    )
 
     conv_outputs, predictions = grad_model(img_array)
 
-    # Ensure predictions is 2D
-    predictions = tf.convert_to_tensor(predictions)
-    if predictions.ndim == 1:
-        predictions = tf.expand_dims(predictions, axis=0)  # make it (1, n)
-    
-    # Class index selection
-    if predictions.shape[1] == 1:  # binary sigmoid
-        class_idx = 0 if predictions[0][0] < 0.5 else 1
-    else:  # multi-class
-        class_idx = tf.argmax(predictions[0])
+    # --- UNIVERSAL CLASS INDEX ---
+    pred = tf.convert_to_tensor(predictions)
+    pred = tf.reshape(pred, [-1])  # flatten to 1D
+    if tf.size(pred) == 1:
+        class_idx = 0 if pred[0] < 0.5 else 1
+    else:
+        class_idx = tf.argmax(pred)
 
-    loss = predictions[:, class_idx]
+    loss = predictions[:, class_idx] if len(predictions.shape) > 1 else predictions[:,0]
+
     with tf.GradientTape() as tape:
         tape.watch(conv_outputs)
         grads = tape.gradient(loss, conv_outputs)
