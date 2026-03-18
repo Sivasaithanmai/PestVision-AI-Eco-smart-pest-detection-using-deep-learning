@@ -5,10 +5,10 @@ from PIL import Image
 import cv2
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
-# ---- Page config ----
+# ----------------- Page config -----------------
 st.set_page_config(page_title="PestVision AI", page_icon="🐛", layout="wide")
 
-# ---- CSS ----
+# ----------------- CSS styling -----------------
 st.markdown("""
 <style>
 body {background-color:white; color:#0b3d0b; font-family:'Arial', sans-serif;}
@@ -21,11 +21,14 @@ body {background-color:white; color:#0b3d0b; font-family:'Arial', sans-serif;}
 </style>
 """, unsafe_allow_html=True)
 
+# ----------------- Header -----------------
 st.markdown("<div class='header'>🐛 PESTVISION AI</div>", unsafe_allow_html=True)
-st.markdown("<div class='subtitle'>Detect pests and boost plant defenses like a pro!</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>Detect pests and protect plants like a pro!</div>", unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("Upload Leaf Image", type=["jpg", "png", "jpeg"])
+# ----------------- File uploader -----------------
+uploaded_file = st.file_uploader("Upload Leaf Image", type=["jpg","jpeg","png"])
 
+# ----------------- Load model -----------------
 @st.cache_resource
 def load_model():
     return tf.keras.models.load_model("pest_model.keras")
@@ -33,8 +36,15 @@ def load_model():
 model = load_model()
 class_names = ["Healthy", "Pest"]
 
-# ---- Grad-CAM functions ----
-def get_gradcam_universal(img_array, model):
+# ----------------- Grad-CAM functions -----------------
+def overlay_heatmap(heatmap, img):
+    heatmap = cv2.resize(heatmap, (img.shape[1], img.shape[0]))
+    heatmap = np.uint8(255*heatmap)
+    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+    return cv2.addWeighted(img, 0.6, heatmap, 0.4, 0)
+
+def get_gradcam(img_array, model):
+    # last conv layer
     last_conv_layer = None
     for layer in reversed(model.layers):
         if isinstance(layer, tf.keras.layers.Conv2D):
@@ -50,9 +60,9 @@ def get_gradcam_universal(img_array, model):
 
     conv_outputs, predictions = grad_model(img_array)
 
-    # --- UNIVERSAL CLASS INDEX ---
+    # universal class selection
     pred = tf.convert_to_tensor(predictions)
-    pred = tf.reshape(pred, [-1])  # flatten to 1D
+    pred = tf.reshape(pred, [-1])  # flatten
     if tf.size(pred) == 1:
         class_idx = 0 if pred[0] < 0.5 else 1
     else:
@@ -72,12 +82,7 @@ def get_gradcam_universal(img_array, model):
 
     return heatmap.numpy()
 
-def overlay_heatmap(heatmap, img):
-    heatmap = cv2.resize(heatmap, (img.shape[1], img.shape[0]))
-    heatmap = np.uint8(255*heatmap)
-    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-    return cv2.addWeighted(img, 0.6, heatmap, 0.4, 0)
-
+# ----------------- Process uploaded file -----------------
 if uploaded_file:
     img = Image.open(uploaded_file).convert("RGB")
     img_resized = img.resize((224,224))
@@ -85,25 +90,22 @@ if uploaded_file:
     img_array_exp = np.expand_dims(img_array, axis=0)
     img_array_exp = preprocess_input(img_array_exp)
 
-    # ---- Prediction ----
     prediction = model.predict(img_array_exp)
-    if prediction.ndim == 2 and prediction.shape[1]==1:
-        pred_value = float(prediction[0][0])
-        predicted_class = class_names[int(pred_value>0.5)]
-        confidence = pred_value if predicted_class=="Pest" else 1-pred_value
-    elif prediction.ndim==1:
-        pred_value = float(prediction[0])
-        predicted_class = class_names[int(pred_value>0.5)]
-        confidence = pred_value if predicted_class=="Pest" else 1-pred_value
-    else:
-        predicted_class = class_names[np.argmax(prediction)]
-        confidence = float(np.max(prediction))
 
-    # ---- Grad-CAM ----
+    # safe prediction handling
+    pred = np.array(prediction).flatten()
+    if len(pred) == 1:  # binary
+        predicted_class = class_names[int(pred[0]>0.5)]
+        confidence = float(pred[0] if predicted_class=="Pest" else 1-pred[0])
+    else:  # multi-class
+        predicted_class = class_names[np.argmax(pred)]
+        confidence = float(np.max(pred))
+
+    # Grad-CAM
     heatmap = get_gradcam(img_array_exp, model)
     heatmap_img = overlay_heatmap(heatmap, np.array(img_resized)) if heatmap is not None else None
 
-    # ---- Display Images ----
+    # ----------------- Display -----------------
     col1, col2 = st.columns(2)
     with col1:
         st.markdown('<div class="image-card">Original Image</div>', unsafe_allow_html=True)
@@ -113,12 +115,10 @@ if uploaded_file:
         if heatmap_img is not None:
             st.image(heatmap_img, use_column_width=True)
         else:
-            st.info("Grad-CAM not available for this model output.")
+            st.info("Grad-CAM not available.")
 
-    # ---- Prediction ----
     st.markdown(f"<div class='prediction-box'>Prediction: {predicted_class} ({confidence*100:.2f}%)</div>", unsafe_allow_html=True)
 
-    # ---- Metrics ----
     st.markdown("""
         <div class='metrics'>
             Model Performance<br>
@@ -129,17 +129,16 @@ if uploaded_file:
         </div>
     """, unsafe_allow_html=True)
 
-    # ---- Unique Tips ----
     st.markdown("""
         <div class='tips-box'>
             <b>Advanced Leaf Defense Tips:</b><br>
-            • Use beneficial microbes to boost leaf immunity.<br>
+            • Beneficial microbes boost leaf immunity.<br>
             • Gentle leaf “massage” improves stomata circulation.<br>
-            • Light UV exposure kills surface pests without damage.<br>
-            • Companion flowers act as visual decoys for pests.<br>
+            • Light UV exposure kills surface pests safely.<br>
+            • Companion flowers act as visual decoys.<br>
             • Tiny reflective surfaces confuse flying pests.<br>
-            • Essential oils like neem/clove lightly sprayed confuse pests.<br>
-            • Sound therapy: play classical/nature sounds for stress resistance.<br>
-            • Morning cool drafts slow pests but leaves adapt.
+            • Essential oils like neem/clove confuse pests.<br>
+            • Sound therapy: play classical/nature sounds.<br>
+            • Morning cool drafts slow pests without harming leaves.
         </div>
     """, unsafe_allow_html=True)
