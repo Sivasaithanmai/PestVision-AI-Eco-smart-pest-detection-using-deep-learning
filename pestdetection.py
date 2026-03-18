@@ -2,7 +2,6 @@ import streamlit as st
 import tensorflow as tf
 import numpy as np
 from PIL import Image
-import cv2
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
 # ----------------- Page config -----------------
@@ -36,52 +35,6 @@ def load_model():
 model = load_model()
 class_names = ["Healthy", "Pest"]
 
-# ----------------- Grad-CAM functions -----------------
-def overlay_heatmap(heatmap, img):
-    heatmap = cv2.resize(heatmap, (img.shape[1], img.shape[0]))
-    heatmap = np.uint8(255*heatmap)
-    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-    return cv2.addWeighted(img, 0.6, heatmap, 0.4, 0)
-
-def get_gradcam(img_array, model):
-    # last conv layer
-    last_conv_layer = None
-    for layer in reversed(model.layers):
-        if isinstance(layer, tf.keras.layers.Conv2D):
-            last_conv_layer = layer.name
-            break
-    if last_conv_layer is None:
-        return None
-
-    grad_model = tf.keras.models.Model(
-        [model.inputs],
-        [model.get_layer(last_conv_layer).output, model.output]
-    )
-
-    conv_outputs, predictions = grad_model(img_array)
-
-    # universal class selection
-    pred = tf.convert_to_tensor(predictions)
-    pred = tf.reshape(pred, [-1])  # flatten
-    if tf.size(pred) == 1:
-        class_idx = 0 if pred[0] < 0.5 else 1
-    else:
-        class_idx = tf.argmax(pred)
-
-    loss = predictions[:, class_idx] if len(predictions.shape) > 1 else predictions[:,0]
-
-    with tf.GradientTape() as tape:
-        tape.watch(conv_outputs)
-        grads = tape.gradient(loss, conv_outputs)
-
-    pooled_grads = tf.reduce_mean(grads, axis=(0,1,2))
-    conv_outputs = conv_outputs[0]
-    heatmap = tf.reduce_sum(tf.multiply(conv_outputs, pooled_grads), axis=-1)
-    heatmap = tf.nn.relu(heatmap)
-    heatmap /= tf.reduce_max(heatmap) + 1e-8
-
-    return heatmap.numpy()
-
 # ----------------- Process uploaded file -----------------
 if uploaded_file:
     img = Image.open(uploaded_file).convert("RGB")
@@ -101,21 +54,9 @@ if uploaded_file:
         predicted_class = class_names[np.argmax(pred)]
         confidence = float(np.max(pred))
 
-    # Grad-CAM
-    heatmap = get_gradcam(img_array_exp, model)
-    heatmap_img = overlay_heatmap(heatmap, np.array(img_resized)) if heatmap is not None else None
-
     # ----------------- Display -----------------
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown('<div class="image-card">Original Image</div>', unsafe_allow_html=True)
-        st.image(img, use_column_width=True)
-    with col2:
-        st.markdown('<div class="image-card">Grad-CAM Visualization</div>', unsafe_allow_html=True)
-        if heatmap_img is not None:
-            st.image(heatmap_img, use_column_width=True)
-        else:
-            st.info("Grad-CAM not available.")
+    st.markdown('<div class="image-card">Uploaded Image</div>', unsafe_allow_html=True)
+    st.image(img, use_column_width=True)
 
     st.markdown(f"<div class='prediction-box'>Prediction: {predicted_class} ({confidence*100:.2f}%)</div>", unsafe_allow_html=True)
 
