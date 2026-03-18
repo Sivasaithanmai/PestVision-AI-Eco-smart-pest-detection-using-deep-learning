@@ -77,7 +77,7 @@ if uploaded_file:
         st.image(heatmap_img, caption="Grad-CAM Visualization", use_container_width=True)
 
     st.markdown(f"<h2 style='text-align:center;'>Prediction: {predicted_class}</h2>", unsafe_allow_html=True)
-s
+    # Precomputed metrics
     st.markdown("""
     <div style="text-align:center; padding:20px; border-radius:10px; background-color:#111; color:white;">
         <h3>Model Performance</h3>
