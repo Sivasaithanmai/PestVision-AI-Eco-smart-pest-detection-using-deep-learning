@@ -1,27 +1,29 @@
 import streamlit as st
 import tensorflow as tf
 import numpy as np
-from tensorflow.keras.preprocessing import image
-from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from PIL import Image
 import cv2
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
 # ---- Page config ----
-st.set_page_config(page_title="PestVision AI", page_icon="🐞", layout="wide")
+st.set_page_config(page_title="PestVision AI", page_icon="🐛", layout="wide")
 
 # ---- Custom CSS ----
 st.markdown("""
     <style>
         body {
-            background-color: #f4fdf7;
+            background-color: white;
             color: #0b3d0b;
+            font-family: 'Arial', sans-serif;
         }
         .stFileUploader>div>div>input {
             border-radius: 10px;
         }
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            color: #0b3d0b;
         }
         .metrics {
             text-align: center; 
@@ -29,6 +31,14 @@ st.markdown("""
             border-radius: 10px; 
             background-color: #0b3d0b; 
             color: white;
+            font-weight: bold;
+        }
+        .prediction-box {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #0b3d0b;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -41,7 +51,7 @@ def load_model():
 model = load_model()
 class_names = ["Healthy", "Pest"]
 
-# ---- Grad-CAM ----
+# ---- Grad-CAM functions ----
 def get_gradcam(img_array, model):
     last_conv_layer = None
     for layer in reversed(model.layers):
@@ -56,14 +66,13 @@ def get_gradcam(img_array, model):
 
     with tf.GradientTape() as tape:
         conv_outputs, predictions = grad_model(img_array)
-        # binary-safe loss: works even if output shape is (1,1)
         if predictions.shape[1] == 1:
             loss = predictions[:, 0]
         else:
             loss = predictions[:, tf.argmax(predictions[0])]
 
     grads = tape.gradient(loss, conv_outputs)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+    pooled_grads = tf.reduce_mean(grads, axis=(0,1,2))
     conv_outputs = conv_outputs[0]
 
     heatmap = tf.reduce_sum(tf.multiply(conv_outputs, pooled_grads), axis=-1)
@@ -79,26 +88,23 @@ def overlay_heatmap(heatmap, img):
     return superimposed
 
 # ---- App UI ----
-st.markdown("<h1 class='header'>🐞 PestVision AI</h1>", unsafe_allow_html=True)
+st.markdown("<div class='header'>🐛 PestVision AI</div>", unsafe_allow_html=True)
 uploaded_file = st.file_uploader("Upload Leaf Image", type=["jpg", "png", "jpeg"])
 
 if uploaded_file:
-    # Read and preprocess image
     img = Image.open(uploaded_file).convert("RGB")
-    img_resized = img.resize((224, 224))
+    img_resized = img.resize((224,224))
     img_array = np.array(img_resized).astype('float32')
     img_array_exp = np.expand_dims(img_array, axis=0)
     img_array_exp = preprocess_input(img_array_exp)
 
     # Prediction
     prediction = model.predict(img_array_exp)
-    
-    # Binary-safe prediction
-    if prediction.shape[1] == 1:  # sigmoid binary
-        pred_value = prediction[0][0]
+    if prediction.ndim == 2 and prediction.shape[1] == 1:
+        pred_value = float(prediction[0][0])
         predicted_class = class_names[int(pred_value > 0.5)]
-        confidence = float(pred_value if pred_value > 0.5 else 1 - pred_value)
-    else:  # softmax multi-class
+        confidence = pred_value if predicted_class == "Pest" else 1 - pred_value
+    else:
         predicted_class = class_names[np.argmax(prediction)]
         confidence = float(np.max(prediction))
 
@@ -106,23 +112,23 @@ if uploaded_file:
     heatmap = get_gradcam(img_array_exp, model)
     heatmap_img = overlay_heatmap(heatmap, np.array(img_resized))
 
-    # Display side by side
+    # Display images side by side
     col1, col2 = st.columns(2)
     with col1:
-        st.image(img, caption="Original Image", use_container_width=True)
+        st.image(img, caption="Original Image", use_column_width=True)
     with col2:
-        st.image(heatmap_img, caption="Grad-CAM Visualization", use_container_width=True)
+        st.image(heatmap_img, caption="Grad-CAM Visualization", use_column_width=True)
 
-    # Prediction result
-    st.markdown(f"<h2 style='text-align:center;'>Prediction: {predicted_class} ({confidence*100:.2f}%)</h2>", unsafe_allow_html=True)
+    # Prediction
+    st.markdown(f"<div class='prediction-box'>Prediction: {predicted_class} ({confidence*100:.2f}%)</div>", unsafe_allow_html=True)
 
     # Precomputed metrics
     st.markdown("""
         <div class='metrics'>
-            <h3>Model Performance</h3>
-            <p>Accuracy: 92%</p>
-            <p>Precision: 90%</p>
-            <p>Recall: 88%</p>
-            <p>F1 Score: 89%</p>
+            Model Performance<br>
+            Accuracy: 92%<br>
+            Precision: 90%<br>
+            Recall: 88%<br>
+            F1 Score: 89%
         </div>
     """, unsafe_allow_html=True)
