@@ -35,6 +35,7 @@ class_names = ["Healthy", "Pest"]
 
 # ---- Grad-CAM functions ----
 def get_gradcam(img_array, model):
+    # Find last conv layer
     last_conv_layer = None
     for layer in reversed(model.layers):
         if isinstance(layer, tf.keras.layers.Conv2D):
@@ -43,24 +44,32 @@ def get_gradcam(img_array, model):
     if last_conv_layer is None:
         return None
 
-    grad_model = tf.keras.models.Model([model.inputs], [model.get_layer(last_conv_layer).output, model.output])
-    with tf.GradientTape() as tape:
-        conv_outputs, predictions = grad_model(img_array)
-        # robust class selection
-        if predictions.ndim == 2 and predictions.shape[1] == 1:
-            class_idx = 0 if predictions[0][0] < 0.5 else 1
-        elif predictions.ndim == 1:
-            class_idx = 0 if predictions[0] < 0.5 else 1
-        else:
-            class_idx = tf.argmax(predictions[0])
-        loss = predictions[:, class_idx]
+    grad_model = tf.keras.models.Model([model.inputs],[model.get_layer(last_conv_layer).output, model.output])
 
-    grads = tape.gradient(loss, conv_outputs)
+    conv_outputs, predictions = grad_model(img_array)
+
+    # Ensure predictions is 2D
+    predictions = tf.convert_to_tensor(predictions)
+    if predictions.ndim == 1:
+        predictions = tf.expand_dims(predictions, axis=0)  # make it (1, n)
+    
+    # Class index selection
+    if predictions.shape[1] == 1:  # binary sigmoid
+        class_idx = 0 if predictions[0][0] < 0.5 else 1
+    else:  # multi-class
+        class_idx = tf.argmax(predictions[0])
+
+    loss = predictions[:, class_idx]
+    with tf.GradientTape() as tape:
+        tape.watch(conv_outputs)
+        grads = tape.gradient(loss, conv_outputs)
+
     pooled_grads = tf.reduce_mean(grads, axis=(0,1,2))
     conv_outputs = conv_outputs[0]
     heatmap = tf.reduce_sum(tf.multiply(conv_outputs, pooled_grads), axis=-1)
     heatmap = tf.nn.relu(heatmap)
     heatmap /= tf.reduce_max(heatmap) + 1e-8
+
     return heatmap.numpy()
 
 def overlay_heatmap(heatmap, img):
