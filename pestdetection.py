@@ -18,20 +18,24 @@ st.markdown("""
         }
         .stFileUploader>div>div>input {
             border-radius: 10px;
+            border: 2px solid #0b3d0b;
         }
         .header {
             text-align: center;
             margin-bottom: 30px;
-            font-size: 2.5em;
+            font-size: 3em;
+            font-weight: 900;  /* Extra bold */
             color: #0b3d0b;
         }
         .metrics {
             text-align: center; 
             padding: 20px; 
-            border-radius: 10px; 
-            background-color: #0b3d0b; 
-            color: white;
+            border-radius: 15px; 
+            border: 2px solid #0b3d0b;
+            color: #0b3d0b;
             font-weight: bold;
+            margin-top: 20px;
+            background-color: #e6f2e6;
         }
         .prediction-box {
             text-align: center;
@@ -39,6 +43,19 @@ st.markdown("""
             font-size: 1.5em;
             font-weight: bold;
             color: #0b3d0b;
+            background-color: #d9f2d9;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .stButton>button {
+            background-color: #0b3d0b;
+            color: white;
+            border-radius: 8px;
+            padding: 8px 20px;
+            font-weight: bold;
+        }
+        .stButton>button:hover {
+            background-color: #145214;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -88,7 +105,7 @@ def overlay_heatmap(heatmap, img):
     return superimposed
 
 # ---- App UI ----
-st.markdown("<div class='header'>🐛 PestVision AI</div>", unsafe_allow_html=True)
+st.markdown("<div class='header'>🐛 PESTVISION AI</div>", unsafe_allow_html=True)
 uploaded_file = st.file_uploader("Upload Leaf Image", type=["jpg", "png", "jpeg"])
 
 if uploaded_file:
